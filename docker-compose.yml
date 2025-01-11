@@ -1,9 +1,40 @@
-# docker-compose.yml
 version: "3.7"
 services:
+  spark-master:
+    image: bitnami/spark:3.5
+    container_name: spark-master
+    user: root
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+    ports:
+      - "8080:8080"   # Web UI port
+      - "7077:7077"   # Spark master port
+    volumes:
+      - "spark-master-volume:/bitnami"
+    restart: always
+    networks:
+      - spark-network
+  
+  spark-worker:
+    image: bitnami/spark:3.5
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2g
+    depends_on:
+      - spark-master
+    restart: always
+    networks:
+      - spark-network
+
   zookeeper:
     restart: always
-    container_name: kafka-like-zookeeper
+    container_name: zookeeper
     image: docker.io/bitnami/zookeeper:3.8
     ports:
       - "2181:2181"
@@ -11,9 +42,10 @@ services:
       - "zookeeper-volume:/bitnami"
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
+
   kafka:
     restart: always
-    container_name: kafka-like
+    container_name: kafka
     image: docker.io/bitnami/kafka:3.3
     ports:
       - "9093:9093"
@@ -29,6 +61,12 @@ services:
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
     depends_on:
       - zookeeper
+
 volumes:
-  kafka-volume:
+  spark-master-volume:
   zookeeper-volume:
+  kafka-volume:
+
+networks:
+  spark-network:  # Define custom network
+    driver: bridge
